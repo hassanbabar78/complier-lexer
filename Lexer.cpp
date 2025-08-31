@@ -4,12 +4,14 @@
 #include <regex>
 using namespace std;
 
+
 struct Token {
     string type;
     string lexeme;
 };
 
 vector<pair<string, regex>> TokensDefinaton = {
+    
     {"T_INT",        regex("^int\\b")},
     {"T_FLOAT",      regex("^float\\b")},
     {"T_STRING",     regex("^string\\b")},
@@ -75,62 +77,38 @@ vector<pair<string, regex>> TokensDefinaton = {
     {"T_COMMENT_MULTI",  regex("^/\\*[\\s\\S]*?\\*/")}
 };
 
-bool matchToken(const string& word, Token& matchToken) {
-    for (auto &token : TokensDefinaton) {
-        if (regex_match(word, token.second)) {
-            matchToken = {token.first, word};
-            return true;
-        }
-    }
-    return false;
-}
-
 vector<Token> Toxenization(string input) {
     vector<Token> Tokens;
-    string buffer = "";
-    char c = ' ';
-
-    for (int i = 0; i <= input.size(); i++) {
-        if(i < input.size()){
-            c = input[i];
-        }else{
-            c = ' ';
+    while (!input.empty()) {
+        bool isMatched = false;
+        for (auto &token : TokensDefinaton) {
+            smatch match;
+            if (regex_search(input, match, token.second)) {
+                string matchedLexeme = match.str();
+                if (token.first != "T_WHITESPACE" && 
+                    token.first != "T_COMMENT_SINGLE" && 
+                    token.first != "T_COMMENT_MULTI") {
+                    Tokens.push_back({token.first, matchedLexeme});
+                }
+                input = input.substr(matchedLexeme.size());
+                isMatched = true;
+                break;
+            }
         }
-
-        if (isspace(c) || c == ';' || c == ',' || c == '(' || c == ')' ||
-            c == '{' || c == '}' || c == '[' || c == ']') {
-            
-            if (!buffer.empty()) {
-                Token token;
-                if (matchToken(buffer, token)) {
-                    Tokens.push_back(token);
-                } else {
-                    cerr << "UNEXPECTED TOKEN: " << buffer << endl;
-                }
-                buffer.clear();
-            }
-
-            if (!isspace(c)) {
-                string delimeter(1, c);
-                Token token;
-                if (matchToken(delimeter, token)) {
-                    Tokens.push_back(token);
-                }
-            }
-        } else {
-            buffer += c;
+        if (!isMatched) {
+            cerr << "UNEXPEXTED TOKEN: this is now Allowed... " << input[0] << endl;
+            input = input.substr(1);
         }
     }
-
     return Tokens;
 }
 
 int main() {
     string inputCode =
-        R"(int x = 10;
-        float y = 20.5;
-        if (x < y) { return x; }
-        else { return y; })";
+        R"(int 0x = 10
+        float y = 20.5
+        if (x < y) { return x }
+        else { return y})";
 
     cout << "Input Code:\n" << inputCode << "\n\nTokens:\n";
 
