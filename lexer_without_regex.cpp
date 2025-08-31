@@ -1,173 +1,186 @@
 #include <iostream>
-#include <vector>
 #include <string>
+#include <vector>
 #include <cctype>
-#include <stdexcept>
-#include <unordered_map>
 using namespace std;
-enum TokenType {
-    T_FUNCTION, T_INT, T_FLOAT, T_STRING, T_BOOL, T_RETURN, T_IF, T_ELSE,
-    T_IDENTIFIER, T_INTLIT, T_FLOATLIT, T_STRINGLIT,
-    T_ASSIGNOP, T_EQUALSOP, T_PLUS, T_MINUS, T_MUL, T_DIV,
-    T_LT, T_GT, T_LTE, T_GTE, T_NEQ, T_AND, T_OR,
-    T_PARENL, T_PARENR, T_BRACEL, T_BRACER, T_COMMA, T_SEMICOLON,
-    T_QUOTES, T_UNKNOWN
-};
 
 struct Token {
-    TokenType type;
-    string value;
+    string type;
+    string lexeme;
 };
 
-
-unordered_map<TokenType, string> tokenNames = {
-    {T_FUNCTION, "TFUNCTION"}, {T_INT, "TINT"}, {T_FLOAT, "TFLOAT"}, {T_STRING, "TSTRING"},
-    {T_BOOL, "TBOOL"}, {T_RETURN, "TRETURN"}, {T_IF, "TIF"}, {T_ELSE, "TELSE"},
-    {T_IDENTIFIER, "TIDENTIFIER"}, {T_INTLIT, "TINTLIT"}, {T_FLOATLIT, "TFLOATLIT"},
-    {T_STRINGLIT, "TSTRINGLIT"}, {T_ASSIGNOP, "TASSIGNOP"}, {T_EQUALSOP, "TEQUALSOP"},
-    {T_PLUS, "TPLUS"}, {T_MINUS, "TMINUS"}, {T_MUL, "TMUL"}, {T_DIV, "TDIV"},
-    {T_LT, "TLTOP"}, {T_GT, "TGTOP"}, {T_LTE, "TLTE"}, {T_GTE, "TGTE"}, {T_NEQ, "TNEQ"},
-    {T_AND, "TAND"}, {T_OR, "TOR"}, {T_PARENL, "TPARENL"}, {T_PARENR, "TPARENR"},
-    {T_BRACEL, "TBRACEL"}, {T_BRACER, "TBRACER"}, {T_COMMA, "TCOMMA"}, {T_SEMICOLON, "TSEMICOLON"},
-    {T_QUOTES, "TQUOTES"}, {T_UNKNOWN, "TUNKNOWN"}
+vector<string> keywords = {
+    "int", "float", "string", "bool", "void",
+    "fn", "return", "if", "else", "for", "while",
+    "break", "continue", "true", "false"
 };
 
-class Lexer {
-    string src;
-    size_t pos = 0;
+vector<pair<string, string>> operators = {
+    {"T_EQUALSOP", "=="},
+    {"T_NOTEQOP", "!="},
+    {"T_LTEQOP", "<="},
+    {"T_GTEQOP", ">="},
+    {"T_SHIFTLOP", "<<"},
+    {"T_SHIFTROP", ">>"},
+    {"T_ANDOP", "&&"},
+    {"T_OROP", "||"},
 
-    char peek() {
-        return (pos < src.size()) ? src[pos] : '\0';
-    }
+    {"T_PLUSOP", "+"},
+    {"T_MINUSOP", "-"},
+    {"T_MULTOP", "*"},
+    {"T_DIVOP", "/"},
+    {"T_MODOP", "%"},
+    {"T_ASSIGNOP", "="},
+    {"T_LTOP", "<"},
+    {"T_GTOP", ">"},
+    {"T_NOTOP", "!"},
+    {"T_BITANDOP", "&"},
+    {"T_BITOROP", "|"},
+    {"T_BITXOROP", "^"},
+    {"T_BITNOTOP", "~"},
+};
 
-    char get() {
-        return (pos < src.size()) ? src[pos++] : '\0';
-    }
+vector<pair<string, string>> delimiters = {
+    {"T_SEMICOLON", ";"},
+    {"T_COMMA", ","},
+    {"T_DOT", "."},
+    {"T_COLON", ":"},
+    {"T_PARENL", "("},
+    {"T_PARENR", ")"},
+    {"T_BRACEL", "{"},
+    {"T_BRACER", "}"},
+    {"T_SQUAREL", "["},
+    {"T_SQUARER", "]"}
+};
 
-    void skipWhitespace() {
-        while (isspace(peek())) get();
-    }
+bool isKeyword(const string& s) {
+    for (auto& k : keywords)
+        if (s == k) return true;
+    return false;
+}
 
-    bool isIdentifierStart(char c) {
-        return isalpha(c) || c == '_' || (c >= 128);
-    }
+bool isIdentifier(const string& s) {
+    if (s.empty()) return false;
+    if (!isalpha(s[0]) && s[0] != '_') return false;
+    for (char c : s)
+        if (!isalnum(c) && c != '_') return false;
+    return true;
+}
 
-    bool isIdentifierChar(char c) {
-        return isalnum(c) || c == '_' || (c >= 128);
-    }
+vector<Token> tokenize(const string& input) {
+    vector<Token> tokens;
+    int i = 0, n = input.size();
 
-public:
-    Lexer(const string &input) : src(input) {}
-
-    vector<Token> tokenize() {
-        vector<Token> tokens;
-
-        while (pos < src.size()) {
-            skipWhitespace();
-            char c = peek();
-            if (!c) break;
+    while (i < n) {
+        char c = input[i];
 
 
-            if (isIdentifierStart(c)) {
-                string ident;
-                while (isIdentifierChar(peek())) ident += get();
+        if (isspace(c)) { i++; continue; }
 
-                if (ident == "fn") tokens.push_back({T_FUNCTION, ident});
-                else if (ident == "int") tokens.push_back({T_INT, ident});
-                else if (ident == "float") tokens.push_back({T_FLOAT, ident});
-                else if (ident == "string") tokens.push_back({T_STRING, ident});
-                else if (ident == "bool") tokens.push_back({T_BOOL, ident});
-                else if (ident == "return") tokens.push_back({T_RETURN, ident});
-                else if (ident == "if") tokens.push_back({T_IF, ident});
-                else if (ident == "else") tokens.push_back({T_ELSE, ident});
-                else tokens.push_back({T_IDENTIFIER, ident});
-                continue;
+
+        if (c == '/' && i+1 < n && input[i+1] == '/') {
+            while (i < n && input[i] != '\n') i++;
+            continue;
+        }
+
+
+        if (c == '/' && i+1 < n && input[i+1] == '*') {
+            i += 2;
+            while (i+1 < n && !(input[i] == '*' && input[i+1] == '/')) i++;
+            i += 2;
+            continue;
+        }
+
+
+        if (isdigit(c)) {
+            string num;
+            num += c;
+            i++;
+            while (i < n && isdigit(input[i])) {
+                num += input[i++];
             }
 
 
-            if (isdigit(c)) {
-                std::string num;
-                bool isFloat = false;
-                while (isdigit(peek()) || peek() == '.') {
-                    if (peek() == '.') {
-                        if (isFloat) throw runtime_error("Invalid float literal");
-                        isFloat = true;
-                    }
-                    num += get();
+            if (i < n && input[i] == '.') {
+                num += input[i++];
+                while (i < n && isdigit(input[i])) {
+                    num += input[i++];
                 }
-                if (isFloat) tokens.push_back({T_FLOATLIT, num});
-                else tokens.push_back({T_INTLIT, num});
-                continue;
+                tokens.push_back({"T_FLOATLIT", num});
             }
 
-
-            if (c == '"') {
-                get();
-                std::string str;
-                while (peek() != '"' && peek() != '\0') {
-                    if (peek() == '\\') {
-                        get();
-                        char esc = get();
-                        if (esc == 'n') str += "\\n";
-                        else if (esc == 't') str += "\\t";
-                        else if (esc == '"') str += '"';
-                        else str += esc;
-                    } else str += get();
+            else if (i < n && (isalpha(input[i]) || input[i] == '_')) {
+                string invalid = num;
+                while (i < n && (isalnum(input[i]) || input[i] == '_')) {
+                    invalid += input[i++];
                 }
-                if (peek() == '"') get();
-                tokens.push_back({T_STRINGLIT, str});
-                continue;
+                cerr << "LEXICAL ERROR: Invalid identifier '" << invalid
+                     << "' (cannot start with digit)\n";
+                exit(1);
             }
+            else {
+                tokens.push_back({"T_INTLIT", num});
+            }
+            continue;
+        }
 
 
-            switch (c) {
-                case '=': get(); if (peek() == '=') { get(); tokens.push_back({T_EQUALSOP, "=="}); } 
-                          else tokens.push_back({T_ASSIGNOP, "="}); continue;
-                case '+': get(); tokens.push_back({T_PLUS, "+"}); continue;
-                case '-': get(); tokens.push_back({T_MINUS, "-"}); continue;
-                case '*': get(); tokens.push_back({T_MUL, "*"}); continue;
-                case '/': get(); tokens.push_back({T_DIV, "/"}); continue;
-                case '<': get(); tokens.push_back({T_LT, "<"}); continue;
-                case '>': get(); tokens.push_back({T_GT, ">"}); continue;
-                case '!': get(); if (peek() == '=') { get(); tokens.push_back({T_NEQ, "!="}); } 
-                          else throw runtime_error("Unexpected !"); continue;
-                case '&': get(); if (peek() == '&') { get(); tokens.push_back({T_AND, "&&"}); } 
-                          else throw runtime_error("Unexpected &"); continue;
-                case '|': get(); if (peek() == '|') { get(); tokens.push_back({T_OR, "||"}); } 
-                          else throw runtime_error("Unexpected |"); continue;
-                case '(': get(); tokens.push_back({T_PARENL, "("}); continue;
-                case ')': get(); tokens.push_back({T_PARENR, ")"}); continue;
-                case '{': get(); tokens.push_back({T_BRACEL, "{"}); continue;
-                case '}': get(); tokens.push_back({T_BRACER, "}"}); continue;
-                case ',': get(); tokens.push_back({T_COMMA, ","}); continue;
-                case ';': get(); tokens.push_back({T_SEMICOLON, ";"}); continue;
-                default:
-                    throw runtime_error(std::string("Unexpected character: ") + c);
+        if (isalpha(c) || c == '_') {
+            string word;
+            while (i < n && (isalnum(input[i]) || input[i] == '_')) {
+                word += input[i++];
+            }
+            if (isKeyword(word))
+                tokens.push_back({"T_" + string(1, toupper(word[0])) + word.substr(1), word});
+            else
+                tokens.push_back({"T_IDENTIFIER", word});
+            continue;
+        }
+
+
+        bool matched = false;
+        for (auto& op : operators) {
+            int len = op.second.size();
+            if (i+len <= n && input.substr(i, len) == op.second) {
+                tokens.push_back({op.first, op.second});
+                i += len;
+                matched = true;
+                break;
             }
         }
-        return tokens;
+        if (matched) continue;
+
+
+        for (auto& d : delimiters) {
+            if (c == d.second[0]) {
+                tokens.push_back({d.first, d.second});
+                i++;
+                matched = true;
+                break;
+            }
+        }
+        if (matched) continue;
+
+
+        cerr << "UNEXPECTED TOKEN: " << c << endl;
+        i++;
     }
-};
+
+    return tokens;
+}
 
 int main() {
-    string code = R"(
-        int x = 10;
+    string inputCode =
+        R"(int 9x = 10;
         float y = 20.5;
-        if (x < y) {
-            return x;
-        } else {
-            return y;
-        }
-    )";
+        if (x < y) { return x; }
+        else { return y; })";
 
-    Lexer lexer(code);
-    try {
-        auto tokens = lexer.tokenize();
-        cout << "Tokens:\n\n";
-        for (auto &tok : tokens) {
-            cout << tokenNames[tok.type] << " -> " << tok.value << "\n";
-        }
-    } catch (std::exception &e) {
-        cerr << "Lexer error: " << e.what() << "\n";
+    cout << "Input Code:\n" << inputCode << "\n\nTokens:\n";
+
+    vector<Token> Tokens = tokenize(inputCode);
+
+    for (auto &token : Tokens) {
+        cout << token.type << " -> " << token.lexeme << endl;
     }
 }
